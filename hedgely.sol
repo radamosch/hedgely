@@ -140,7 +140,7 @@ contract Hedgely {
     uint nonce = 0;
     function rand() internal returns (uint){
         nonce++;
-        return uint(block.blockhash(block.number-nonce))%50 + 10;
+        return uint(block.blockhash(block.number-nonce))%80 + 10;
     }
 
     function roundIt(uint256 amount) internal constant returns (uint256)
