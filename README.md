@@ -12,4 +12,8 @@ Any transaction on or after the 100th block will cause the session to end so lon
 
 The session will continue until there is only one lowest option. Winnings will then be distributed and the next session automatically started.
 
+https://hedgely.net
+
+
+
 
