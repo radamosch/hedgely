@@ -117,7 +117,7 @@ contract Hedgely {
     Random api = Random(0x1637140C895e01d14be5a7A42Ec2c5BB22893713);
 
     function rand() internal returns (uint64) {
-      return api.random(30);
+      return api.random(20);
     }
 
     // resets the market conditions
