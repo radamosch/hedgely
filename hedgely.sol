@@ -2,12 +2,13 @@ pragma solidity ^0.4.19;
 
 import "https://github.com/axiomzen/eth-random/contracts/Random.sol";
 
-//0x7362f4a43a06c1c850f14002c867127123b61dad
-
 
 // radamosch@gmail.com
 
 // Contract based investment game
+//0x7362f4a43a06c1c850f14002c867127123b61dad
+
+
 
 contract Hedgely {
 
@@ -115,7 +116,7 @@ contract Hedgely {
 
     Random api = Random(0x1637140C895e01d14be5a7A42Ec2c5BB22893713);
 
-    function rand() returns (uint64) {
+    function rand() internal returns (uint64) {
       return api.random(80);
     }
 
