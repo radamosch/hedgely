@@ -6,7 +6,7 @@ import "https://github.com/axiomzen/eth-random/contracts/Random.sol";
 // radamosch@gmail.com
 
 // Contract based investment game
-//0xc8bad665c5c107810f1dd4eed87c5e64d0cf0f47
+//
 
 
 
@@ -117,7 +117,7 @@ contract Hedgely {
     Random api = Random(0x1637140C895e01d14be5a7A42Ec2c5BB22893713);
 
     function rand() internal returns (uint64) {
-      return api.random(20);
+      return api.random(19)+1;
     }
 
     // resets the market conditions
