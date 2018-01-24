@@ -1,5 +1,8 @@
 pragma solidity ^0.4.19;
 
+import "https://github.com/axiomzen/eth-random/contracts/Random.sol";
+
+
 // radamosch@gmail.com
 
 // Contract based investment game
@@ -82,7 +85,7 @@ contract Hedgely {
 
    function Hedgely() public {
      owner = msg.sender;
-     sessionBlockSize = 100;
+     sessionBlockSize = 5;
      sessionNumber = 0;
      totalHedgelyWinnings = 0;
      totalHedgelyInvested = 0;
@@ -107,6 +110,13 @@ contract Hedgely {
         return numPlayers;
     }
 
+
+    Random api = Random(0x1637140C895e01d14be5a7A42Ec2c5BB22893713);
+
+    function rand() returns (uint64) {
+      return api.random(80);
+    }
+
     // resets the market conditions
    function resetMarket() internal {
 
@@ -120,7 +130,8 @@ contract Hedgely {
      
      for(uint i=0;i<10;i++)
       {
-          marketOptions[i] = rand() * 1000000000000000; // wei
+          uint256 num =  rand();
+          marketOptions[i] =num*precision; // wei
           sumInvested+=  marketOptions[i];
       }
 
@@ -136,12 +147,6 @@ contract Hedgely {
 
    } 
 
-    // sort of randomness
-    uint nonce = 0;
-    function rand() internal returns (uint){
-        nonce++;
-        return uint(block.blockhash(block.number-nonce))%80 + 10;
-    }
 
     function roundIt(uint256 amount) internal constant returns (uint256)
     {
