@@ -88,7 +88,7 @@ contract Hedgely {
 
    function Hedgely() public {
      owner = msg.sender;
-     sessionBlockSize = 5;
+     sessionBlockSize = 100;
      sessionNumber = 0;
      totalHedgelyWinnings = 0;
      totalHedgelyInvested = 0;
