@@ -6,7 +6,7 @@ import "https://github.com/axiomzen/eth-random/contracts/Random.sol";
 // radamosch@gmail.com
 
 // Contract based investment game
-//0x7362f4a43a06c1c850f14002c867127123b61dad
+//0xc8bad665c5c107810f1dd4eed87c5e64d0cf0f47
 
 
 
