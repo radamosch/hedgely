@@ -4,6 +4,7 @@ pragma solidity ^0.4.19;
 
 // Contract based investment game
 
+// 0xf8c4dbdc95c6bb06df29a15506f6186272c0894e
 
 /**
  * @title Ownable
@@ -424,10 +425,14 @@ contract Hedgely is Ownable,Pausable, Syndicate {
 
         }
 
-        // calculate session profit and add to the syndicated value
-        if (totalInvested>seedInvestment && (totalInvested-seedInvestment)>sessionWinnings){
-          uint256 sessionProfit = (totalInvested-seedInvestment)-sessionWinnings;
-          currentSyndicateValue+=sessionProfit;
+        uint256 playerInvestments = totalInvested-seedInvestment;
+
+        if (sessionWinnings>playerInvestments){
+          currentSyndicateValue-=sessionWinnings-playerInvestments; // this is a loss
+        }
+        
+        if (playerInvestments>sessionWinnings){
+          currentSyndicateValue+=playerInvestments-sessionWinnings; // this is a gain
         }
 
         resetMarket();
