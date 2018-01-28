@@ -4,7 +4,6 @@ pragma solidity ^0.4.19;
 
 // Contract based investment game
 
-// 0xf8c4dbdc95c6bb06df29a15506f6186272c0894e
 
 /**
  * @title Ownable
@@ -327,6 +326,12 @@ contract Hedgely is Ownable,Pausable, Syndicate {
      currentLowest = findCurrentLowest();
      StartSession(sessionNumber, sessionBlockSize, marketOptions , startingBlock);
 
+     // increment share cycle index as this session has ended
+     shareCycleIndex+=1;
+     if (!shareCycleOverdue && shareCycleIndex >= shareCycleSessionSize){
+       shareCycleOverdue = true; // allows syndicate members to claim dividend
+     }
+
    }
 
 
@@ -413,22 +418,20 @@ contract Hedgely is Ownable,Pausable, Syndicate {
                 sessionWinnings+=winnings;
                 players[j].transfer(winnings); // don't throw here
               }
+
               playerPortfolio[players[j]] = [0,0,0,0,0,0,0,0,0,0];
               activePlayers[players[j]]=false;
 
         }
 
         // calculate session profit and add to the syndicated value
-        uint256 sessionProfit = SafeMath.sub(SafeMath.sub(totalInvested,seedInvestment),sessionWinnings);
-        currentSyndicateValue+=sessionProfit;
+        if (totalInvested>seedInvestment && (totalInvested-seedInvestment)>sessionWinnings){
+          uint256 sessionProfit = (totalInvested-seedInvestment)-sessionWinnings;
+          currentSyndicateValue+=sessionProfit;
+        }
 
         resetMarket();
 
-        // increment share cycle index as this session has ended
-        shareCycleIndex+=1;
-        if (!shareCycleOverdue && shareCycleIndex >= shareCycleSessionSize){
-          shareCycleOverdue = true; // allows syndicate members to claim dividend
-        }
 
     }
 
