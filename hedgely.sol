@@ -428,9 +428,14 @@ contract Hedgely is Ownable,Pausable, Syndicate {
         uint256 playerInvestments = totalInvested-seedInvestment;
 
         if (sessionWinnings>playerInvestments){
-          currentSyndicateValue-=sessionWinnings-playerInvestments; // this is a loss
+          uint256 loss = sessionWinnings-playerInvestments; // this is a loss
+          if (currentSyndicateValue>=loss){
+            currentSyndicateValue-=loss;
+          }else{
+            currentSyndicateValue = 0;
+          }
         }
-        
+
         if (playerInvestments>sessionWinnings){
           currentSyndicateValue+=playerInvestments-sessionWinnings; // this is a gain
         }
