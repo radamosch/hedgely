@@ -419,6 +419,10 @@ contract Hedgely is Ownable,Pausable, Syndicate {
                 sessionWinnings+=winnings;
                 players[j].transfer(winnings); // don't throw here
               }
+              // else we need to sum the investments that did not win and convert those into syndicate Shares
+              // it's a bit bitter that losers could end up winners in the end by receiving more profitShare
+              // it's also interesting that playing to lose at the outset can provide a higher returns
+              
 
               playerPortfolio[players[j]] = [0,0,0,0,0,0,0,0,0,0];
               activePlayers[players[j]]=false;
