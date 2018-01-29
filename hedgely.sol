@@ -4,7 +4,7 @@ pragma solidity ^0.4.19;
 
 // Contract based investment game
 
-// 0xf8c4dbdc95c6bb06df29a15506f6186272c0894e
+// 0x03f7dFcD7e2843875231d95985d16595409Af24a
 
 /**
  * @title Ownable
