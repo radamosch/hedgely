@@ -1,10 +1,8 @@
 pragma solidity ^0.4.19;
 
+// Hedgely - The Ethereum Inverted Market
 // radamosch@gmail.com
-
 // Contract based investment game
-
-// 0x03f7dFcD7e2843875231d95985d16595409Af24a
 
 /**
  * @title Ownable
@@ -47,65 +45,25 @@ contract Ownable {
 }
 
 
-/**
- * @title Pausable
- * @dev Base contract which allows children to implement an emergency stop mechanism.
- */
-contract Pausable is Ownable {
-  event Pause();
-  event Unpause();
-
-  bool public paused = false;
-
-
-  /**
-   * @dev Modifier to make a function callable only when the contract is not paused.
-   */
-  modifier whenNotPaused() {
-    require(!paused);
-    _;
-  }
-
-  /**
-   * @dev Modifier to make a function callable only when the contract is paused.
-   */
-  modifier whenPaused() {
-    require(paused);
-    _;
-  }
-
-  /**
-   * @dev called by the owner to pause, triggers stopped state
-   */
-  function pause() onlyOwner whenNotPaused public {
-    paused = true;
-    Pause();
-  }
-
-  /**
-   * @dev called by the owner to unpause, returns to normal state
-   */
-  function unpause() onlyOwner whenPaused public {
-    paused = false;
-    Unpause();
-  }
-}
 
 /**
  * @title Syndicate
  * @dev Syndicated profit sharing - for early adopters
- * Shares are not transferrable -
+ * Shares are not transferable -
  */
-contract Syndicate is Ownable,Pausable{
+contract Syndicate is Ownable{
 
-    uint256 public totalSyndicateShares = 10000;
-    uint256 public availableSyndicateShares = 5000; // how many slots are available
-    //uint256 public maxSharesPerMember = 200; // !!??? todo
-    uint256 public syndicateSharePrice = 1 finney; // 0.001 ether
+    uint256 public totalSyndicateShares = 20000;
+    uint256 public availableEarlyPlayerShares = 5000;
+    uint256 public availableBuyInShares = 5000;
+    uint256 public minimumBuyIn = 10;
+    uint256 public buyInSharePrice = 500000000000000; // wei = 0.0005 ether
     uint256 public shareCycleSessionSize = 10; // number of sessions in a share cycle
     uint256 public shareCycleIndex = 0; // current position in share cycle
-    uint256 public currentSyndicateValue = 0; // total value of syndicate to be divided among memmbers
+    uint256 public currentSyndicateValue = 0; // total value of syndicate to be divided among members
     uint256 public numberSyndicateMembers = 0;
+    uint256 public syndicatePrecision = 1000000000000000;
+
     bool public shareCycleOverdue = false; // whether or not a profit sharing cycle should be processed.
 
     struct member {
@@ -125,20 +83,20 @@ contract Syndicate is Ownable,Pausable{
     );
 
     function Syndicate() public {
-        members[msg.sender].numShares = 5000; // owner portion
+        members[msg.sender].numShares = 10000; // owner portion
         members[msg.sender].profitShare = 0;
         numberSyndicateMembers = 1;
         syndicateMembers.push(msg.sender);
     }
 
-    // initiates a dividend oif necessary, sends
-    function claimDividend() public {
+    // initiates a dividend of necessary, sends
+    function claimProfit() public {
       if (members[msg.sender].numShares==0) revert(); // only syndicate members.
 
       // divide up the profits between the syndicate members
       if (shareCycleOverdue){
 
-          uint256 totalOwnedShares = totalSyndicateShares-availableSyndicateShares;
+          uint256 totalOwnedShares = totalSyndicateShares-(availableEarlyPlayerShares+availableBuyInShares);
           uint256 profitPerShare = SafeMath.div(currentSyndicateValue,totalOwnedShares);
 
           // foreach member , calculate their profitshare
@@ -163,19 +121,35 @@ contract Syndicate is Ownable,Pausable{
     }
 
     // allocate syndicate shares up to the limit.
-    function allocateShares(uint256 value) internal {
-         if (availableSyndicateShares==0) return;
-         uint256 allocation = SafeMath.div(value,syndicateSharePrice);
-         if (allocation >= availableSyndicateShares){
-            allocation = availableSyndicateShares; // limit hit
-         }
-         availableSyndicateShares = SafeMath.sub(availableSyndicateShares, allocation);
+    function allocateEarlyPlayerShare() internal {
+        if (availableEarlyPlayerShares==0) return;
+		availableEarlyPlayerShares--;
+       	addMember(); // possibly add this member to the syndicate
+        members[msg.sender].numShares+=1;
 
-         if (members[msg.sender].numShares == 0){
-          syndicateMembers.push(msg.sender);
-          numberSyndicateMembers++;
-         } // add new member of syndicate
-         members[msg.sender].numShares+=allocation;
+    }
+
+    function addMember() internal {
+    	if (members[msg.sender].numShares == 0){
+		          syndicateMembers.push(msg.sender);
+		          numberSyndicateMembers++;
+		 } // add new member of syndicate
+    }
+
+    // buy into syndicate
+    function buyIntoSyndicate() public payable  {
+    		if(msg.value==0 || availableBuyInShares==0) revert();
+      		if(msg.value < minimumBuyIn*buyInSharePrice) revert();
+
+     		uint256 value = (msg.value/syndicatePrecision)*syndicatePrecision; // ensure precision
+		    uint256 allocation = value/buyInSharePrice;
+
+		    if (allocation >= availableBuyInShares){
+		        allocation = availableBuyInShares; // limit hit
+		    }
+		    availableBuyInShares-=allocation;
+		    addMember(); // possibly add this member to the syndicate
+	        members[msg.sender].numShares+=allocation;
 
     }
 
@@ -190,7 +164,7 @@ contract Syndicate is Ownable,Pausable{
 /**
  * Core Hedgely Contract
  */
-contract Hedgely is Ownable,Pausable, Syndicate {
+contract Hedgely is Ownable, Syndicate {
 
    // Array of players
    address[] private players;
@@ -208,7 +182,7 @@ contract Hedgely is Ownable,Pausable, Syndicate {
    // The total amount of Ether bet for this current market
    uint256 public totalInvested;
    // The amount of Ether used to see the market
-   uint256 public seedInvestment;
+   uint256 private seedInvestment;
 
 
    // The total number of investments the users have made
@@ -344,7 +318,7 @@ contract Hedgely is Ownable,Pausable, Syndicate {
     }
 
     // main entry point for investors/players
-    function invest(uint256 optionNumber) public payable noReentrancy whenNotPaused {
+    function invest(uint256 optionNumber) public payable noReentrancy {
 
       // Check that the number to bet is within the range
       assert(optionNumber >= 0 && optionNumber <= 9);
@@ -368,7 +342,7 @@ contract Hedgely is Ownable,Pausable, Syndicate {
       Invest(msg.sender, optionNumber, amount, marketOptions, block.number);
 
       // possibly allocate syndicate shares
-      allocateShares(amount);
+     allocateEarlyPlayerShare(); // allocate a single share per investment for early adopters
 
       currentLowest = findCurrentLowest();
       if (block.number >= endingBlock && currentLowestCount==1) distributeWinnings();
@@ -419,11 +393,7 @@ contract Hedgely is Ownable,Pausable, Syndicate {
                 sessionWinnings+=winnings;
                 players[j].transfer(winnings); // don't throw here
               }
-              // else we need to sum the investments that did not win and convert those into syndicate Shares
-              // it's a bit bitter that losers could end up winners in the end by receiving more profitShare
-              // it's also interesting that playing to lose at the outset can provide a higher returns
-              
-
+          
               playerPortfolio[players[j]] = [0,0,0,0,0,0,0,0,0,0];
               activePlayers[players[j]]=false;
 
