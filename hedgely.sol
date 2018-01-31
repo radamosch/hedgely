@@ -64,8 +64,6 @@ contract Syndicate is Ownable{
     uint256 public numberSyndicateMembers = 0;
     uint256 public syndicatePrecision = 1000000000000000;
 
-    bool public shareCycleOverdue = false; // whether or not a profit sharing cycle should be processed.
-
     struct member {
         uint256 numShares;
         uint256 profitShare;
@@ -92,27 +90,6 @@ contract Syndicate is Ownable{
     // initiates a dividend of necessary, sends
     function claimProfit() public {
       if (members[msg.sender].numShares==0) revert(); // only syndicate members.
-
-      // divide up the profits between the syndicate members
-      if (shareCycleOverdue){
-
-          uint256 totalOwnedShares = totalSyndicateShares-(availableEarlyPlayerShares+availableBuyInShares);
-          uint256 profitPerShare = SafeMath.div(currentSyndicateValue,totalOwnedShares);
-
-          // foreach member , calculate their profitshare
-          for(uint i = 0; i< numberSyndicateMembers; i++)
-          {
-            // do += so that acrues across share cycles.
-            members[syndicateMembers[i]].profitShare+=SafeMath.mul(members[syndicateMembers[i]].numShares,profitPerShare);
-          }
-
-          // emit a profit share event
-          ProfitShare(currentSyndicateValue, numberSyndicateMembers, totalOwnedShares , profitPerShare);
-
-          currentSyndicateValue=0; // all the profit has been divided up
-          shareCycleOverdue = false;
-          shareCycleIndex = 0; // restart the share cycle count.
-      }
       uint256 profitShare = members[msg.sender].profitShare;
       if (profitShare>0){
         members[msg.sender].profitShare = 0;
@@ -120,20 +97,40 @@ contract Syndicate is Ownable{
       }
     }
 
+    function distributeProfit() internal {
+
+      uint256 totalOwnedShares = totalSyndicateShares-(availableEarlyPlayerShares+availableBuyInShares);
+      uint256 profitPerShare = SafeMath.div(currentSyndicateValue,totalOwnedShares);
+
+      // foreach member , calculate their profitshare
+      for(uint i = 0; i< numberSyndicateMembers; i++)
+      {
+        // do += so that acrues across share cycles.
+        members[syndicateMembers[i]].profitShare+=SafeMath.mul(members[syndicateMembers[i]].numShares,profitPerShare);
+      }
+
+      // emit a profit share event
+      ProfitShare(currentSyndicateValue, numberSyndicateMembers, totalOwnedShares , profitPerShare);
+
+      currentSyndicateValue=0; // all the profit has been divided up
+      shareCycleIndex = 0; // restart the share cycle count.
+    }
+
     // allocate syndicate shares up to the limit.
     function allocateEarlyPlayerShare() internal {
         if (availableEarlyPlayerShares==0) return;
-		availableEarlyPlayerShares--;
+		    availableEarlyPlayerShares--;
        	addMember(); // possibly add this member to the syndicate
         members[msg.sender].numShares+=1;
 
     }
 
+    // add new member of syndicate
     function addMember() internal {
-    	if (members[msg.sender].numShares == 0){
+    	 if (members[msg.sender].numShares == 0){
 		          syndicateMembers.push(msg.sender);
 		          numberSyndicateMembers++;
-		 } // add new member of syndicate
+		    }
     }
 
     // buy into syndicate
@@ -156,6 +153,11 @@ contract Syndicate is Ownable{
     // how many shares?
     function memberShareCount() public  view returns (uint256) {
         return members[msg.sender].numShares;
+    }
+
+    // how much profit?
+    function memberProfitShare() public  view returns (uint256) {
+        return members[msg.sender].profitShare;
     }
 
 }
@@ -301,12 +303,6 @@ contract Hedgely is Ownable, Syndicate {
      currentLowest = findCurrentLowest();
      StartSession(sessionNumber, sessionBlockSize, marketOptions , startingBlock);
 
-     // increment share cycle index as this session has ended
-     shareCycleIndex+=1;
-     if (!shareCycleOverdue && shareCycleIndex >= shareCycleSessionSize){
-       shareCycleOverdue = true; // allows syndicate members to claim dividend
-     }
-
    }
 
 
@@ -393,7 +389,7 @@ contract Hedgely is Ownable, Syndicate {
                 sessionWinnings+=winnings;
                 players[j].transfer(winnings); // don't throw here
               }
-          
+
               playerPortfolio[players[j]] = [0,0,0,0,0,0,0,0,0,0];
               activePlayers[players[j]]=false;
 
@@ -412,6 +408,12 @@ contract Hedgely is Ownable, Syndicate {
 
         if (playerInvestments>sessionWinnings){
           currentSyndicateValue+=playerInvestments-sessionWinnings; // this is a gain
+        }
+
+        // check if share cycle is complete and if required distribute profits
+        shareCycleIndex+=1;
+        if (shareCycleIndex >= shareCycleSessionSize){
+          distributeProfit();
         }
 
         resetMarket();
