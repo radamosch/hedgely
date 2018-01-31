@@ -1,7 +1,5 @@
 # hedgely
-Smart contract base investment game
-
-Hegdely is an Ethereum smart contract based investment game with 10 symbol options to choose from.
+Hegdely is an Ethereum smart contract investment game with 10 symbol options to choose from.
 
 At the start of each session, the system seeds the options with random values to stir the market.
 
