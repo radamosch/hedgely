@@ -58,7 +58,7 @@ contract Syndicate is Ownable{
     uint256 public availableBuyInShares = 5000;
     uint256 public minimumBuyIn = 10;
     uint256 public buyInSharePrice = 500000000000000; // wei = 0.0005 ether
-    uint256 public shareCycleSessionSize = 10; // number of sessions in a share cycle
+    uint256 public shareCycleSessionSize = 100; // number of sessions in a share cycle
     uint256 public shareCycleIndex = 0; // current position in share cycle
     uint256 public currentSyndicateValue = 0; // total value of syndicate to be divided among members
     uint256 public numberSyndicateMembers = 0;
