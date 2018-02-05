@@ -1,8 +1,7 @@
 pragma solidity ^0.4.19;
 
-// Hedgely - The Ethereum Inverted Market
+// Hedgely - v2 
 // radamosch@gmail.com
-// Contract based investment game
 
 /**
  * @title Ownable
@@ -54,8 +53,8 @@ contract Ownable {
 contract Syndicate is Ownable{
 
     uint256 public totalSyndicateShares = 20000;
-    uint256 public availableEarlyPlayerShares = 5000;
-    uint256 public availableBuyInShares = 5000;
+    uint256 public availableEarlyPlayerShares = 2500;
+    uint256 public availableBuyInShares = 7500;
     uint256 public minimumBuyIn = 10;
     uint256 public buyInSharePrice = 500000000000000; // wei = 0.0005 ether
     uint256 public shareCycleSessionSize = 1000; // number of sessions in a share cycle
@@ -203,6 +202,12 @@ contract Hedgely is Ownable, Syndicate {
    uint256 public precision = 1000000000000000; // rounding to this will keep it to 1 finney resolution
    uint256 public minimumStake = 1 finney;
 
+   uint64 public maxSeedInvestment = 9; // a) Proposal to reduce initial space
+   uint64 public chaosMatcherProbability  = 3; // b) probability house will match a player investment
+   uint256 public highestSeedInvestment; // b) limit to what the house will match
+
+   uint256 public winningMultiplier; // what this session will yield 5x - 8x
+
      event Invest(
            address _from,
            uint256 _option,
@@ -260,10 +265,6 @@ contract Hedgely is Ownable, Syndicate {
         return numPlayers;
     }
 
-    // generate a random number between 1 and 20 to seed a symbol
-    function rand() internal returns (uint64) {
-      return random(19)+1;
-    }
 
     // pseudo random - but does that matter?
     uint64 _seed = 0;
@@ -276,17 +277,22 @@ contract Hedgely is Ownable, Syndicate {
    function resetMarket() internal {
 
     sessionNumber ++;
+    winningMultiplier = random(2)+5; // random between 5-7 b) Proposal change
     startingBlock = block.number;
     endingBlock = startingBlock + sessionBlockSize; // approximately every 5 minutes - can play with this
     numPlayers = 0;
 
     // randomize the initial market values
     uint256 sumInvested = 0;
+    highestSeedInvestment = 0;
     for(uint i=0;i<10;i++)
     {
-        uint256 num =  rand();
+        uint256 num =  random(maxSeedInvestment)+1;
         marketOptions[i] =num * precision; // wei
         sumInvested+=  marketOptions[i];
+        if (marketOptions[i]>highestSeedInvestment){
+            highestSeedInvestment=marketOptions[i]; // this is to limit the chaosMatcher
+        }
     }
 
      playerPortfolio[this] = marketOptions;
@@ -331,6 +337,13 @@ contract Hedgely is Ownable, Syndicate {
                     insertPlayer(msg.sender);
                     activePlayers[msg.sender]=true;
        }
+
+      uint256 matcher =  random(chaosMatcherProbability)+1;
+      if (matcher==chaosMatcherProbability &&  marketOptions[optionNumber]<highestSeedInvestment){
+            // doing the chaos matching bit
+        marketOptions[optionNumber] = SafeMath.add(marketOptions[optionNumber],amount);
+            
+      }
 
       Invest(msg.sender, optionNumber, amount, marketOptions, block.number);
 
@@ -378,9 +391,10 @@ contract Hedgely is Ownable, Syndicate {
       {
       if (playerPortfolio[players[j]][numberWinner]>0){
         uint256 winningAmount =  playerPortfolio[players[j]][numberWinner];
-        uint256 winnings = SafeMath.mul(8,winningAmount); // eight times the invested amount.
+        uint256 winnings = SafeMath.mul(winningMultiplier,winningAmount); // eight times the invested amount.
         totalHedgelyWinnings+=winnings;
         sessionWinnings+=winnings;
+        winnings-=precision; // d) proposal winnings transaction fee (to help with sustainability)
         players[j].transfer(winnings); // don't throw here
       }
 
@@ -426,6 +440,15 @@ contract Hedgely is Ownable, Syndicate {
     function setsessionBlockSize (uint256 blockCount) public onlyOwner {
         sessionBlockSize = blockCount;
     }
+
+    function setChaosMatcherProbability (uint64 probability) public onlyOwner {
+        chaosMatcherProbability = probability;
+    }
+
+    function setMaxSeedInvestment (uint64 maxseed) public onlyOwner {
+        maxSeedInvestment = maxseed;
+    }
+
 
     // ----- admin functions in event of an issue --
 
