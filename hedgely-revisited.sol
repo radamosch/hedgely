@@ -1,8 +1,8 @@
 pragma solidity ^0.4.19;
 
-//0xe7591211dd174c1200bb45e1596d215c3e94534c
+//0x9f85c86d1d436c4f55c4df2ec27102ab174adbf4
 
-// Hedgely - v2 
+// Hedgely - v2
 // radamosch@gmail.com
 
 /**
@@ -137,13 +137,16 @@ contract Syndicate is Ownable{
       }
 
       uint256 topPlayerDistributableProfit =  SafeMath.div(currentSyndicateValue,4); // 25 %
-      uint256  profitPerTopPlayer = SafeMath.div(topPlayerDistributableProfit,10);
+      uint256 numberOfRecipients = min(numberOfRegulars,10);
+      uint256 profitPerTopPlayer = SafeMath.div(topPlayerDistributableProfit,numberOfRecipients);
 
       // for each of the top 10 players distribute their profit.
-      for(i = 0; i< 10; i++)
+      for(i = 0; i< numberOfRecipients; i++)
       {
-        // do += so that acrues across share cycles.
-        regulars[topPlayers[i]].profitShare+=profitPerTopPlayer;
+        // do += so that acrues across share cycles - in case player profit is not claimed.
+        if (topPlayers[i]!=0) { // check no null addresses
+          regulars[topPlayers[i]].profitShare+=profitPerTopPlayer;
+        }
       }
       numberOfRegulars=0;
 
@@ -166,7 +169,7 @@ contract Syndicate is Ownable{
 
          regulars[msg.sender].playCount++;
      if (regulars[msg.sender].playCount==1){
-       
+
         // first players
         if (numberOfRegulars<10)
         {
@@ -182,7 +185,7 @@ contract Syndicate is Ownable{
 
          // if this player is in the top 10 already we should check to see if they will climb a spot
          if (rank>0 && rank<10)
-         { 
+         {
              if(regulars[topPlayers[rank-1]].playCount<regulars[msg.sender].playCount ){
                 // swappy
                 topPlayers[rank]=topPlayers[rank-1];// slide
@@ -194,7 +197,7 @@ contract Syndicate is Ownable{
              // outside top 10, so we check to see if they should enter
             if(regulars[msg.sender].playCount> regulars[topPlayers[9]].playCount){
                 // swap this player for the last one in the list
-                regulars[topPlayers[9]].rank=11; // 11 is outside   
+                regulars[topPlayers[9]].rank=11; // 11 is outside
                 regulars[msg.sender].rank=9;
                 topPlayers[9]=msg.sender;
             }
@@ -247,6 +250,19 @@ contract Syndicate is Ownable{
         members[stakeholderAddress].numShares+=allocation;
     }
 
+    // player ranking Information
+    function playerRankingInformation() public constant returns(uint256, uint256, uint256) {
+           return (regulars[msg.sender].playCount, regulars[msg.sender].rank, regulars[msg.sender].profitShare);
+    }
+
+    // returns what it will take for a user to make it into the top 10
+    function topTenEntryPoint() public constant returns(uint) {
+           return regulars[topPlayers[9]].playCount+1; // could be 1, could be whatever
+    }
+
+    function min(uint a, uint b) private pure returns (uint) {
+           return a < b ? a : b;
+    }
 
 }
 
@@ -374,13 +390,13 @@ contract Hedgely is Ownable, Syndicate {
     uint256 sumInvested = 0;
     uint256[10] memory startingOptions;
     uint256 num = 0;
- 
+
     startingOptions[0]=precision; // there's always a 1
 
     // low class  - 3 items
     for(uint i=1;i<4;i++)
     {
-        num =  random(1)+2; // between 2 and 3
+        num =  random(3)+1; // between 2 and 3
         startingOptions[i] =num * precision; // wei
         sumInvested+=  marketOptions[i];
     }
@@ -406,14 +422,14 @@ contract Hedgely is Ownable, Syndicate {
       uint64 currentIndex = uint64(marketOptions.length);
       uint256 temporaryValue;
       uint64 randomIndex;
-    
+
       // While there remain elements to shuffle...
       while (0 != currentIndex) {
-    
+
         // Pick a remaining element...
         randomIndex = random(currentIndex);
         currentIndex -= 1;
-    
+
         // And swap it with the current element.
         temporaryValue = startingOptions[currentIndex];
         startingOptions[currentIndex] = startingOptions[randomIndex];
@@ -469,7 +485,7 @@ contract Hedgely is Ownable, Syndicate {
       if (hedgelyMatcherStatus==hedgelyMatcherProbability){
             // doing the matching bit
         marketOptions[optionNumber] = SafeMath.add(marketOptions[optionNumber],amount);
-            
+
       }
 
       Invest(msg.sender, optionNumber, amount, marketOptions, block.number);
