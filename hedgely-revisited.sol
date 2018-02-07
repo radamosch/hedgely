@@ -502,7 +502,22 @@ contract Hedgely is Ownable, Syndicate {
       rankInvestingPlayer(); // allocate a single share per investment for early adopters
 
       currentLowest = findCurrentLowest();
-      if (block.number >= endingBlock && currentLowestCount==1) distributeWinnings();
+      if (block.number >= endingBlock && currentLowestCount==1){
+        // lone wolf bleeding distruption (it's an N player game)
+        // random amount on lowest 50% of the time
+        uint256 num =  random(2)+1; // between 1 and 2
+        if (numPlayers==2 && num==1){
+            // use hedgelyMatcherStatus to determine amount between 1 and 4
+            marketOptions[currentLowest] = SafeMath.add(marketOptions[currentLowest],hedgelyMatcherStatus*precision);
+            hedgelyMatcherStatus=hedgelyMatcherProbability; // signal that this was a play
+        
+        }else{
+            distributeWinnings();
+        }
+
+      }
+        
+      
 
     } // end invest
 
