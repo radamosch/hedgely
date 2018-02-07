@@ -1,6 +1,5 @@
 pragma solidity ^0.4.19;
 
-//0x9f85c86d1d436c4f55c4df2ec27102ab174adbf4
 
 // Hedgely - v2
 // radamosch@gmail.com
@@ -137,7 +136,7 @@ contract Syndicate is Ownable{
       }
 
       uint256 topPlayerDistributableProfit =  SafeMath.div(currentSyndicateValue,4); // 25 %
-      uint256 numberOfRecipients = min(numberOfRegulars,10);
+      uint256 numberOfRecipients = min(numberOfRegulars,10); // even split among top players even if <10
       uint256 profitPerTopPlayer = SafeMath.div(topPlayerDistributableProfit,numberOfRecipients);
 
       // for each of the top 10 players distribute their profit.
@@ -174,11 +173,12 @@ contract Syndicate is Ownable{
         if (numberOfRegulars<10)
         {
             topPlayers[numberOfRegulars]=msg.sender;
+            regulars[msg.sender].rank=numberOfRegulars;
+        }else{
+          regulars[msg.sender].rank=11; // outsider
         }
-
          // new player
-        numberOfRegulars++;
-        regulars[msg.sender].rank=numberOfRegulars; // join at the back of the queue
+        numberOfRegulars++; 
      }else{
          // this player has played before and likely has a rank
          uint256 rank = regulars[msg.sender].rank;
@@ -250,9 +250,17 @@ contract Syndicate is Ownable{
         members[stakeholderAddress].numShares+=allocation;
     }
 
+
+    // The leaderboard
+    function leaderboard() public constant returns (address[10])
+    {
+        return topPlayers;
+    }
+
+
     // player ranking Information
-    function playerRankingInformation() public constant returns(uint256, uint256, uint256) {
-           return (regulars[msg.sender].playCount, regulars[msg.sender].rank, regulars[msg.sender].profitShare);
+    function playerRankingInformation(address _playerAddress) public constant returns(uint256, uint256, uint256) {
+           return (regulars[_playerAddress].playCount, regulars[_playerAddress].rank, regulars[_playerAddress].profitShare);
     }
 
     // returns what it will take for a user to make it into the top 10
@@ -381,7 +389,7 @@ contract Hedgely is Ownable, Syndicate {
    function resetMarket() internal {
 
     sessionNumber ++;
-    winningMultiplier = random(2)+6; // random between 6-8 b) Proposal change
+    winningMultiplier = random(3)+6; // random between 6-8 b) Proposal change
     startingBlock = block.number;
     endingBlock = startingBlock + sessionBlockSize; // approximately every 5 minutes - can play with this
     numPlayers = 0;
@@ -396,24 +404,24 @@ contract Hedgely is Ownable, Syndicate {
     // low class  - 3 items
     for(uint i=1;i<4;i++)
     {
-        num =  random(3)+1; // between 2 and 3
+        num =  random(2)+2; // between 2 and 3
         startingOptions[i] =num * precision; // wei
-        sumInvested+=  marketOptions[i];
+        sumInvested+=  startingOptions[i];
     }
 
     // mid class
    for(i=4;i<8;i++)
     {
-        num =  random(3)+4; // between 4 and 7
+        num =  random(4)+4; // between 4 and 7
         startingOptions[i] =num * precision; // wei
-        sumInvested+=  marketOptions[i];
+        sumInvested+=  startingOptions[i];
     }
     // high class
     for(i=8;i<10;i++)
     {
-        num =  random(2)+8; // between 8 and 10
+        num =  random(3)+8; // between 8 and 10
         startingOptions[i] =num * precision; // wei
-        sumInvested+=  marketOptions[i];
+        sumInvested+=  startingOptions[i];
     }
 
 
