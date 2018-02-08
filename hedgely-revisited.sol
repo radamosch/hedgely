@@ -152,6 +152,7 @@ contract Syndicate is Ownable{
       // emit a profit share event
       ProfitShare(currentSyndicateValue, numberSyndicateMembers, totalOwnedShares , profitPerShare);
 
+      topPlayers=[0,0,0,0,0,0,0,0,0,0];
       currentSyndicateValue=0; // all the profit has been divided up
       shareCycleIndex = 0; // restart the share cycle count.
       shareCycle++;
@@ -178,7 +179,7 @@ contract Syndicate is Ownable{
           regulars[msg.sender].rank=11; // outsider
         }
          // new player
-        numberOfRegulars++; 
+        numberOfRegulars++;
      }else{
          // this player has played before and likely has a rank
          uint256 rank = regulars[msg.sender].rank;
@@ -382,18 +383,18 @@ contract Hedgely is Ownable, Syndicate {
 
     // allows anybody to reset the market without a winner, but only when overtime is complete
     function resetHedgelyMarket() public {
-      if (block.number >= endingBlock+sessionBlockSize){      
+      if (block.number >= endingBlock+sessionBlockSize){
          // there is a winner, but does house win?
         if(currentLowestCount==1 && !houseWinsOvertimeComplete){
           distributeWinnings();
         }
         resetMarket();
       }
-    } 
+    }
 
     function setHouseWinsOvertimeComplete(bool houseWins) public onlyOwner{
       houseWinsOvertimeComplete = houseWins;
-    } 
+    }
 
     // pseudo random - but does that matter?
     uint64 _seed = 0;
@@ -492,7 +493,7 @@ contract Hedgely is Ownable, Syndicate {
       uint256 amount = roundIt(msg.value); // round to precision
       assert(amount >= minimumStake);
 
-       // overtime is complete so we reset the market 
+       // overtime is complete so we reset the market
        // in this case nobody wins
       if (block.number >= endingBlock+sessionBlockSize){
         // there is a winner, but does house win?
@@ -537,10 +538,14 @@ contract Hedgely is Ownable, Syndicate {
        uint256 playerInvestments = totalInvested-seedInvestment;
 
        // if house is losing 25% chance it will also play on lowest
-       if (potentialWinnings-4>playerInvestments && hedgelyMatcherStatus==hedgelyMatcherProbability){
+       if (potentialWinnings-4>playerInvestments && hedgelyMatcherStatus==1){
             marketOptions[currentLowest] = SafeMath.add(marketOptions[currentLowest],hedgelyMatcherStatus*precision);
             hedgelyMatcherStatus=hedgelyMatcherProbability; // signal that this was a play
-        }else{
+            currentLowest = findCurrentLowest();
+        }
+        if (currentLowestCount==1)
+        {
+            // somebody wins here.
             distributeWinnings();
             resetMarket();
         }
@@ -618,7 +623,7 @@ contract Hedgely is Ownable, Syndicate {
 
     } // end distribute winnings
 
-  
+
     // convenience to manage a growing array
     function insertPlayer(address value) internal {
         if(numPlayers == players.length) {
