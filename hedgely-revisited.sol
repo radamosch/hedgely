@@ -265,10 +265,6 @@ contract Syndicate is Ownable{
            return (regulars[_playerAddress].playCount, regulars[_playerAddress].rank, regulars[_playerAddress].profitShare);
     }
 
-    // returns what it will take for a user to make it into the top 10
-    function topTenEntryPoint() public constant returns(uint) {
-           return regulars[topPlayers[9]].playCount+1; // could be 1, could be whatever
-    }
 
     function min(uint a, uint b) private pure returns (uint) {
            return a < b ? a : b;
