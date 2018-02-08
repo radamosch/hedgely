@@ -185,10 +185,9 @@ contract Syndicate is Ownable{
          uint256 rank = regulars[msg.sender].rank;
 
          // if this player is in the top 10 already we should check to see if they will climb a spot
-         if (rank>=0 && rank<10)
+         if (rank>0 && rank<10)
          {
-              // won't displace themselves
-             if(rank> 0 && regulars[topPlayers[rank-1]].playCount<regulars[msg.sender].playCount ){
+             if(regulars[topPlayers[rank-1]].playCount<regulars[msg.sender].playCount ){
                 // swappy
                 topPlayers[rank]=topPlayers[rank-1];// slide
                 topPlayers[rank-1]=msg.sender;// climb
@@ -265,6 +264,10 @@ contract Syndicate is Ownable{
            return (regulars[_playerAddress].playCount, regulars[_playerAddress].rank, regulars[_playerAddress].profitShare);
     }
 
+    // returns what it will take for a user to make it into the top 10
+    function topTenEntryPoint() public constant returns(uint) {
+           return regulars[topPlayers[9]].playCount+1; // could be 1, could be whatever
+    }
 
     function min(uint a, uint b) private pure returns (uint) {
            return a < b ? a : b;
