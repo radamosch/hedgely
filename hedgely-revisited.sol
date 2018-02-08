@@ -320,6 +320,9 @@ contract Hedgely is Ownable, Syndicate {
 
    uint256 public winningMultiplier; // what this session will yield 5x - 8x
 
+   bool public houseWinsOvertimeComplete = true; // the house always wins when overtime is allowed to go > sessionBlockSize;
+
+
      event Invest(
            address _from,
            uint256 _option,
@@ -377,6 +380,20 @@ contract Hedgely is Ownable, Syndicate {
         return numPlayers;
     }
 
+    // allows anybody to reset the market without a winner, but only when overtime is complete
+    function resetHedgelyMarket() public {
+      if (block.number >= endingBlock+sessionBlockSize){      
+         // there is a winner, but does house win?
+        if(currentLowestCount==1 && !houseWinsOvertimeComplete){
+          distributeWinnings();
+        }
+        resetMarket();
+      }
+    } 
+
+    function setHouseWinsOvertimeComplete(bool houseWins) public onlyOwner{
+      houseWinsOvertimeComplete = houseWins;
+    } 
 
     // pseudo random - but does that matter?
     uint64 _seed = 0;
@@ -399,12 +416,12 @@ contract Hedgely is Ownable, Syndicate {
     uint256[10] memory startingOptions;
     uint256 num = 0;
 
-    startingOptions[0]=precision; // there's always a 1
+    startingOptions[0]=0; // there's always a 0
 
     // low class  - 3 items
     for(uint i=1;i<4;i++)
     {
-        num =  random(2)+2; // between 2 and 3
+        num =  random(2)+1; // between 1 and 2
         startingOptions[i] =num * precision; // wei
         sumInvested+=  startingOptions[i];
     }
@@ -412,14 +429,14 @@ contract Hedgely is Ownable, Syndicate {
     // mid class
    for(i=4;i<8;i++)
     {
-        num =  random(4)+4; // between 4 and 7
+        num =  random(4)+3; // between 3 and 6
         startingOptions[i] =num * precision; // wei
         sumInvested+=  startingOptions[i];
     }
     // high class
     for(i=8;i<10;i++)
     {
-        num =  random(3)+8; // between 8 and 10
+        num =  random(3)+7; // between 7 and 9
         startingOptions[i] =num * precision; // wei
         sumInvested+=  startingOptions[i];
     }
@@ -475,6 +492,16 @@ contract Hedgely is Ownable, Syndicate {
       uint256 amount = roundIt(msg.value); // round to precision
       assert(amount >= minimumStake);
 
+       // overtime is complete so we reset the market 
+       // in this case nobody wins
+      if (block.number >= endingBlock+sessionBlockSize){
+        // there is a winner, but does house win?
+        if(currentLowestCount==1 && !houseWinsOvertimeComplete){
+          distributeWinnings();
+        }
+        resetMarket();
+      }
+
       uint256 holding = playerPortfolio[msg.sender][optionNumber];
       holding = SafeMath.add(holding, amount);
       playerPortfolio[msg.sender][optionNumber] = holding;
@@ -489,6 +516,7 @@ contract Hedgely is Ownable, Syndicate {
                     activePlayers[msg.sender]=true;
        }
 
+
       hedgelyMatcherStatus =  random(hedgelyMatcherProbability)+1;
       if (hedgelyMatcherStatus==hedgelyMatcherProbability){
             // doing the matching bit
@@ -498,26 +526,25 @@ contract Hedgely is Ownable, Syndicate {
 
       Invest(msg.sender, optionNumber, amount, marketOptions, block.number);
 
-      // possibly allocate syndicate shares
-      rankInvestingPlayer(); // allocate a single share per investment for early adopters
+      rankInvestingPlayer(); // rank the player in leaderboard
 
       currentLowest = findCurrentLowest();
+
+      // overtime and there's a winner
       if (block.number >= endingBlock && currentLowestCount==1){
-        // lone wolf bleeding distruption (it's an N player game)
-        // random amount on lowest 50% of the time
-        uint256 num =  random(2)+1; // between 1 and 2
-        if (numPlayers==2 && num==1){
-            // use hedgelyMatcherStatus to determine amount between 1 and 4
+
+       uint256 potentialWinnings = marketOptions[currentLowest]*winningMultiplier; // should always be positive or 0
+       uint256 playerInvestments = totalInvested-seedInvestment;
+
+       // if house is losing 25% chance it will also play on lowest
+       if (potentialWinnings-4>playerInvestments && hedgelyMatcherStatus==hedgelyMatcherProbability){
             marketOptions[currentLowest] = SafeMath.add(marketOptions[currentLowest],hedgelyMatcherStatus*precision);
             hedgelyMatcherStatus=hedgelyMatcherProbability; // signal that this was a play
-        
         }else{
             distributeWinnings();
+            resetMarket();
         }
-
       }
-        
-      
 
     } // end invest
 
@@ -557,7 +584,7 @@ contract Hedgely is Ownable, Syndicate {
       {
       if (playerPortfolio[players[j]][numberWinner]>0){
         uint256 winningAmount =  playerPortfolio[players[j]][numberWinner];
-        uint256 winnings = SafeMath.mul(winningMultiplier,winningAmount); // eight times the invested amount.
+        uint256 winnings = SafeMath.mul(winningMultiplier,winningAmount); // n times the invested amount.
         totalHedgelyWinnings+=winnings;
         sessionWinnings+=winnings;
         players[j].transfer(winnings); // don't throw here
@@ -589,10 +616,9 @@ contract Hedgely is Ownable, Syndicate {
         distributeProfit();
       }
 
-      resetMarket();
     } // end distribute winnings
 
-
+  
     // convenience to manage a growing array
     function insertPlayer(address value) internal {
         if(numPlayers == players.length) {
