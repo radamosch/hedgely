@@ -185,9 +185,10 @@ contract Syndicate is Ownable{
          uint256 rank = regulars[msg.sender].rank;
 
          // if this player is in the top 10 already we should check to see if they will climb a spot
-         if (rank>0 && rank<10)
+         if (rank>=0 && rank<10)
          {
-             if(regulars[topPlayers[rank-1]].playCount<regulars[msg.sender].playCount ){
+             // exclude top player
+             if(rank>0 && regulars[topPlayers[rank-1]].playCount<regulars[msg.sender].playCount ){
                 // swappy
                 topPlayers[rank]=topPlayers[rank-1];// slide
                 topPlayers[rank-1]=msg.sender;// climb
