@@ -252,6 +252,9 @@ contract Syndicate is Ownable{
         members[stakeholderAddress].numShares+=allocation;
     }
 
+    function setShareCycleSessionSize (uint256 size) public onlyOwner {
+        shareCycleSessionSize = size;
+    }
 
     // The leaderboard
     function leaderboard() public constant returns (address[10])
@@ -263,11 +266,6 @@ contract Syndicate is Ownable{
     // player ranking Information
     function playerRankingInformation(address _playerAddress) public constant returns(uint256, uint256, uint256) {
            return (regulars[_playerAddress].playCount, regulars[_playerAddress].rank, regulars[_playerAddress].profitShare);
-    }
-
-    // returns what it will take for a user to make it into the top 10
-    function topTenEntryPoint() public constant returns(uint) {
-           return regulars[topPlayers[9]].playCount+1; // could be 1, could be whatever
     }
 
     function min(uint a, uint b) private pure returns (uint) {
@@ -346,7 +344,7 @@ contract Hedgely is Ownable, Syndicate {
            uint256 _blockNumber
      );
 
-     
+
 
     bool locked;
     modifier noReentrancy() {
@@ -534,7 +532,7 @@ contract Hedgely is Ownable, Syndicate {
           Invest(this, currentLowest, matchAmount, marketOptions, block.number);
           currentLowest = findCurrentLowest();
         } // a match is not required
-      } // end if conditions for matching 
+      } // end if conditions for matching
 
       // overtime and there's a winner
       if (block.number >= endingBlock && currentLowestCount==1){
@@ -626,8 +624,8 @@ contract Hedgely is Ownable, Syndicate {
         players[numPlayers++] = value;
     }
 
-   // We might vary this at some point
-    function setsessionBlockSize (uint256 blockCount) public onlyOwner {
+
+    function setSessionBlockSize (uint256 blockCount) public onlyOwner {
         sessionBlockSize = blockCount;
     }
 
@@ -635,6 +633,13 @@ contract Hedgely is Ownable, Syndicate {
         hedgelyMatcherProbability = probability;
     }
 
+    function setHouseWinsOvertimeComplete (bool houseWins) public onlyOwner {
+         houseWinsOvertimeComplete=houseWins;
+    }
+
+    function setHedgelyMatcherEnabled (bool matcherEnabled) public onlyOwner {
+         hedgelyMatcherEnabled=matcherEnabled;
+    }
 
     // ----- admin functions in event of an issue --
 
