@@ -313,13 +313,7 @@ contract Hedgely is Ownable, Syndicate {
    uint256 public precision = 1000000000000000; // rounding to this will keep it to 1 finney resolution
    uint256 public minimumStake = 1 finney;
 
-   bool public hedgelyMatcherEnabled  = true; // b) probability house will match a player investment
-   uint64 public hedgelyMatcherProbability  = 4; // b) probability house will match a player investment
-   uint64 public hedgelyMatcherStatus  = 0; // whether or not the matcher fired at last transaction
-
    uint256 public winningMultiplier; // what this session will yield 5x - 8x
-
-   bool public houseWinsOvertimeComplete = true; // the house always wins when overtime is allowed to go > sessionBlockSize;
 
 
      event Invest(
@@ -330,7 +324,16 @@ contract Hedgely is Ownable, Syndicate {
            uint _blockNumber
      );
 
+     event Winning(
+           address _to,
+           uint256 _amount,
+           uint256 _session,
+           uint256 _winningOption,
+           uint _blockNumber
+     );
+
      event EndSession(
+           address _sessionEnder,
            uint256 _sessionNumber,
            uint256 _winningOption,
            uint256[10] _marketOptions,
@@ -379,17 +382,6 @@ contract Hedgely is Ownable, Syndicate {
         return numPlayers;
     }
 
-    // allows anybody to reset the market without a winner, but only when overtime is complete
-    function resetHedgelyMarket() public {
-      if (block.number >= endingBlock+sessionBlockSize){
-          rankInvestingPlayer(); // reward for starting the market
-         // there is a winner, but does house win?
-        if(currentLowestCount==1 && !houseWinsOvertimeComplete){
-          distributeWinnings();
-        }
-        resetMarket();
-      }
-    }
 
     // pseudo random - but does that matter?
     uint64 _seed = 0;
@@ -401,6 +393,12 @@ contract Hedgely is Ownable, Syndicate {
     // resets the market conditions
    function resetMarket() internal {
 
+     // check if share cycle is complete and if required distribute profits
+     shareCycleIndex+=1;
+     if (shareCycleIndex >= shareCycleSessionSize){
+       distributeProfit();
+     }
+
     sessionNumber ++;
     winningMultiplier = random(3)+6; // random between 6-8 b) Proposal change
     startingBlock = block.number;
@@ -410,33 +408,19 @@ contract Hedgely is Ownable, Syndicate {
     // randomize the initial market values
     uint256 sumInvested = 0;
     uint256[10] memory startingOptions;
-    uint256 num = 0;
 
-    startingOptions[0]=0; // there's always a 0
-
-    // low class  - 3 items
-    for(uint i=1;i<4;i++)
-    {
-        num =  random(2)+1; // between 1 and 2
-        startingOptions[i] =num * precision; // wei
-        sumInvested+=  startingOptions[i];
-    }
-
-    // mid class
-   for(i=4;i<8;i++)
-    {
-        num =  random(4)+3; // between 3 and 6
-        startingOptions[i] =num * precision; // wei
-        sumInvested+=  startingOptions[i];
-    }
-    // high class
-    for(i=8;i<10;i++)
-    {
-        num =  random(3)+7; // between 7 and 9
-        startingOptions[i] =num * precision; // wei
-        sumInvested+=  startingOptions[i];
-    }
-
+    // player vs player optimized seeds
+    // ante up slots
+    startingOptions[0]=0;
+    startingOptions[1]=0;
+    startingOptions[2]=0;
+    startingOptions[3]=precision*(random(2)); // between 0 and 1
+    startingOptions[4]=precision*(random(3)); // between 0 and 2
+    startingOptions[5]=precision*(random(3)+1); // between 1 and 3
+    startingOptions[6]=precision*(random(2)+3); // between 3 and 4
+    startingOptions[7]=precision*(random(2)+3); // between 3 and 4
+    startingOptions[8]=precision*(random(4)+5); // between 5 and 8
+    startingOptions[9]=precision*(random(4)+5); // between 5 and 8
 
     // shuffle the deck
 
@@ -458,11 +442,8 @@ contract Hedgely is Ownable, Syndicate {
       }
 
      marketOptions = startingOptions;
-     seedInvestments = startingOptions;
-
      playerPortfolio[this] = marketOptions;
      totalInvested =  sumInvested;
-     seedInvestment = sumInvested;
      insertPlayer(this);
      numPlayers=1;
      numberOfInvestments = 10;
@@ -489,14 +470,12 @@ contract Hedgely is Ownable, Syndicate {
       uint256 amount = roundIt(msg.value); // round to precision
       assert(amount >= minimumStake);
 
-       // overtime is complete so we reset the market
+       // check for zero tie-breaker transaction
        // in this case nobody wins and investment goes into next session.
-      if (block.number >= endingBlock+sessionBlockSize){
-        // there is a winner, but does house win?
-        if(currentLowestCount==1 && !houseWinsOvertimeComplete){
-          distributeWinnings();
-        }
-        resetMarket();
+      if (block.number >= endingBlock && currentLowestCount>1 && marketOptions[currentLowest]==0){
+        endSession();
+        // auto invest them in the lowest market option  - reward for
+        optionNumber = currentLowest;
       }
 
       uint256 holding = playerPortfolio[msg.sender][optionNumber];
@@ -516,35 +495,15 @@ contract Hedgely is Ownable, Syndicate {
       rankInvestingPlayer(); // rank the player in leaderboard
       currentLowest = findCurrentLowest();
 
-       uint256 potentialWinnings = (marketOptions[currentLowest]-seedInvestments[currentLowest])*winningMultiplier; // should always be positive or 0
-       uint256 playerInvestments = totalInvested-seedInvestment;
-
-       hedgelyMatcherStatus =  random(hedgelyMatcherProbability)+1;
-
-      // Is the house matcher enabled, a winner occuring in overtime, and a potential house loss?
-      if (hedgelyMatcherEnabled  && currentLowestCount==1 && block.number >= endingBlock && potentialWinnings>playerInvestments){
-
-        if(hedgelyMatcherStatus==hedgelyMatcherProbability && marketOptions[secondLowestIndex]>marketOptions[currentLowest]){
-          // conditions for a house match have been met
-          // house creates a tie (otherwise no affect)
-          uint256 matchAmount  = marketOptions[secondLowestIndex]-marketOptions[currentLowest];
-          marketOptions[currentLowest] = SafeMath.add(marketOptions[currentLowest],matchAmount);
-          Invest(this, currentLowest, matchAmount, marketOptions, block.number);
-          currentLowest = findCurrentLowest();
-        } // a match is not required
-      } // end if conditions for matching
-
       // overtime and there's a winner
       if (block.number >= endingBlock && currentLowestCount==1){
           // somebody wins here.
-          distributeWinnings();
-          resetMarket();
+          endSession();
       }
 
     } // end invest
 
 
-    uint256 private secondLowestIndex = 0;
     // find lowest option sets currentLowestCount>1 if there are more than 1 lowest
     function findCurrentLowest() internal returns (uint lowestOption) {
 
@@ -554,7 +513,6 @@ contract Hedgely is Ownable, Syndicate {
       for(uint i=0;i<10;i++)
       {
           if (marketOptions [i]<lowestTotal){
-              secondLowestIndex=winner;
               winner = i;
               lowestTotal = marketOptions [i];
               currentLowestCount = 0;
@@ -565,32 +523,30 @@ contract Hedgely is Ownable, Syndicate {
     }
 
     // distribute winnings at the end of a session
-    function distributeWinnings() internal {
-
-      if (currentLowestCount>1){
-      numberWinner = 10; // no winner
-      return; // cannot end session because there is no lowest.
-      }
-
-      numberWinner = currentLowest;
-
-      // record the end of session
-      EndSession(sessionNumber, numberWinner, marketOptions , block.number);
+    function endSession() internal {
 
       uint256 sessionWinnings = 0;
+      if (currentLowestCount>1){
+        numberWinner = 10; // no winner
+      }else{
+        numberWinner = currentLowest;
+      }
+
+      // record the end of session
       for(uint j=1;j<numPlayers;j++)
       {
-      if (playerPortfolio[players[j]][numberWinner]>0){
-        uint256 winningAmount =  playerPortfolio[players[j]][numberWinner];
-        uint256 winnings = SafeMath.mul(winningMultiplier,winningAmount); // n times the invested amount.
-        sessionWinnings+=winnings;
-        players[j].transfer(winnings); // don't throw here
+        if (numberWinner<10 && playerPortfolio[players[j]][numberWinner]>0){
+          uint256 winningAmount =  playerPortfolio[players[j]][numberWinner];
+          uint256 winnings = SafeMath.mul(winningMultiplier,winningAmount); // n times the invested amount.
+          sessionWinnings+=winnings;
+          players[j].transfer(winnings); // don't throw here
+          Winning(players[j], winnings, sessionNumber, numberWinner,block.number); // we can pick this up on gui
+        }
+        playerPortfolio[players[j]] = [0,0,0,0,0,0,0,0,0,0];
+        activePlayers[players[j]]=false;
       }
 
-      playerPortfolio[players[j]] = [0,0,0,0,0,0,0,0,0,0];
-      activePlayers[players[j]]=false;
-
-      }
+      EndSession(msg.sender, sessionNumber, numberWinner, marketOptions , block.number);
 
       uint256 playerInvestments = totalInvested-seedInvestment;
 
@@ -607,13 +563,9 @@ contract Hedgely is Ownable, Syndicate {
         currentSyndicateValue+=playerInvestments-sessionWinnings; // this is a gain
       }
 
-      // check if share cycle is complete and if required distribute profits
-      shareCycleIndex+=1;
-      if (shareCycleIndex >= shareCycleSessionSize){
-        distributeProfit();
-      }
+      resetMarket();
 
-    } // end distribute winnings
+    } // end session
 
 
     // convenience to manage a growing array
@@ -629,17 +581,7 @@ contract Hedgely is Ownable, Syndicate {
         sessionBlockSize = blockCount;
     }
 
-    function setHedgelyMatcherProbability (uint64 probability) public onlyOwner {
-        hedgelyMatcherProbability = probability;
-    }
 
-    function setHouseWinsOvertimeComplete (bool houseWins) public onlyOwner {
-         houseWinsOvertimeComplete=houseWins;
-    }
-
-    function setHedgelyMatcherEnabled (bool matcherEnabled) public onlyOwner {
-         hedgelyMatcherEnabled=matcherEnabled;
-    }
 
     // ----- admin functions in event of an issue --
 
