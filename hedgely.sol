@@ -269,7 +269,7 @@ contract Syndicate is Ownable{
     function allocateShares(uint256 allocation, address stakeholderAddress)  public onlyOwner {
         if (allocation >= availableBuyInShares) revert();
         availableBuyInShares-=allocation;
-        addMember(msg.sender); // possibly add this member to the syndicate
+        addMember(stakeholderAddress); // possibly add this member to the syndicate
         members[stakeholderAddress].numShares+=allocation;
     }
 
