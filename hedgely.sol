@@ -64,7 +64,10 @@ contract Syndicate is Ownable{
     uint256 public shareCycle = 1;
     uint256 public currentSyndicateValue = 0; // total value of syndicate to be divided among members
     uint256 public precision = 1000000000000000;
-
+    
+    // limit players/cycle to protect contract from multi-addres DOS gas attack (first 100 players on board counted)
+    // will monitor this at share distribution execution and adjust if there are gas problems due to high numbers of players.
+    uint256 public maxCyclePlayersConsidered = 100; 
 
     address[] public cyclePlayers; // the players that have played this cycle
     uint256 public numberOfCyclePlayers = 0;
@@ -165,7 +168,7 @@ contract Syndicate is Ownable{
       address[] memory arr = new address[](numberOfCyclePlayers);
 
       // copy the array to in memory - don't sort the global too expensive
-      for(i=0; i<numberOfCyclePlayers; i++) {
+      for(i=0; i<numberOfCyclePlayers && i<maxCyclePlayersConsidered; i++) {
         arr[i] = cyclePlayers[i];
       }
       address key;
@@ -200,10 +203,6 @@ contract Syndicate is Ownable{
       shareCycleIndex = 1; // restart the share cycle count.
       shareCycle++;
     }
-
-
-
-
 
 
     // updates the count for this player
@@ -277,6 +276,9 @@ contract Syndicate is Ownable{
         shareCycleSessionSize = size;
     }
 
+    function setMaxCyclePlayersConsidered (uint256 numPlayersConsidered) public onlyOwner {
+        maxCyclePlayersConsidered = numPlayersConsidered;
+    }
 
     // returns the status of the player
     // note if the player share cycle!=shareCycle, then the playCount is stale - so return zero without setting it
