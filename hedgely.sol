@@ -150,7 +150,7 @@ contract Syndicate is Ownable{
     function distributeProfit() internal {
 
       uint256 totalOwnedShares = totalSyndicateShares-(playersShareAllocation+availableBuyInShares);
-      uint256 profitPerShare = SafeMath.div(currentSyndicateValue,totalOwnedShares);
+      uint256 profitPerShare = roundIt(SafeMath.div(currentSyndicateValue,totalOwnedShares));
 
       // foreach member , calculate their profitshare
       for(uint i = 0; i< numberSyndicateMembers; i++)
