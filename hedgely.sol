@@ -59,7 +59,7 @@ contract Syndicate is Ownable{
     uint256 public availableBuyInShares = 5000; // 25%
     uint256 public minimumBuyIn = 10;
     uint256 public buyInSharePrice = 1000000000000000; // wei = 0.001 ether
-    uint256 public shareCycleSessionSize = 10; // number of sessions in a share cycle
+    uint256 public shareCycleSessionSize = 1000; // number of sessions in a share cycle
     uint256 public shareCycleIndex = 0; // current position in share cycle
     uint256 public shareCycle = 1;
     uint256 public currentSyndicateValue = 0; // total value of syndicate to be divided among members
@@ -231,9 +231,9 @@ contract Syndicate is Ownable{
 
 
     // add new member of syndicate
-    function addMember() internal {
-       if (members[msg.sender].numShares == 0){
-              syndicateMembers.push(msg.sender);
+    function addMember(address _memberAddress) internal {
+       if (members[_memberAddress].numShares == 0){
+              syndicateMembers.push(_memberAddress);
               numberSyndicateMembers++;
         }
     }
@@ -250,7 +250,7 @@ contract Syndicate is Ownable{
             allocation = availableBuyInShares; // limit hit
         }
         availableBuyInShares-=allocation;
-        addMember(); // possibly add this member to the syndicate
+        addMember(msg.sender); // possibly add this member to the syndicate
         members[msg.sender].numShares+=allocation;
 
     }
@@ -267,10 +267,9 @@ contract Syndicate is Ownable{
 
     // For previous contributors to hedgely v0.1
     function allocateShares(uint256 allocation, address stakeholderAddress)  public onlyOwner {
-         if (allocation >= availableBuyInShares){
-            allocation = availableBuyInShares; // limit hit
-        }
+        if (allocation >= availableBuyInShares) revert();
         availableBuyInShares-=allocation;
+        addMember(msg.sender); // possibly add this member to the syndicate
         members[stakeholderAddress].numShares+=allocation;
     }
 
