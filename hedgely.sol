@@ -267,7 +267,7 @@ contract Syndicate is Ownable{
 
     // For previous contributors to hedgely v0.1
     function allocateShares(uint256 allocation, address stakeholderAddress)  public onlyOwner {
-        if (allocation >= availableBuyInShares) revert();
+        if (allocation > availableBuyInShares) revert();
         availableBuyInShares-=allocation;
         addMember(stakeholderAddress); // possibly add this member to the syndicate
         members[stakeholderAddress].numShares+=allocation;
