@@ -103,9 +103,9 @@ contract Syndicate is Ownable{
         syndicateMembers.push(msg.sender);
     }
 
-    // initiates a dividend of necessary, sends
+    // shareholder profit claim
     function claimProfit() public {
-      if (members[msg.sender].numShares==0) revert(); // only syndicate members.
+      if (members[msg.sender].numShares==0) revert();
       uint256 profitShare = members[msg.sender].profitShare;
       if (profitShare>0){
         members[msg.sender].profitShare = 0;
@@ -113,9 +113,9 @@ contract Syndicate is Ownable{
       }
     }
 
-    // initiates a dividend of necessary, sends
+    // player profit claim
     function claimPlayerProfit() public {
-      if (allPlayers[msg.sender].profitShare==0) revert(); // only syndicate members.
+      if (allPlayers[msg.sender].profitShare==0) revert(); 
       uint256 profitShare = allPlayers[msg.sender].profitShare;
       if (profitShare>0){
         allPlayers[msg.sender].profitShare = 0;
@@ -123,9 +123,9 @@ contract Syndicate is Ownable{
       }
     }
 
-    // player winnings
+    // player winnings claim
     function claimPlayerWinnings() public {
-      if (allPlayers[msg.sender].winnings==0) revert(); // only syndicate members.
+      if (allPlayers[msg.sender].winnings==0) revert();
       uint256 winnings = allPlayers[msg.sender].winnings;
       if (winnings>0){
         allPlayers[msg.sender].winnings = 0;
@@ -133,6 +133,7 @@ contract Syndicate is Ownable{
       }
     }
 
+    // allocate player winnings
     function allocateWinnings(address _playerAddress, uint256 winnings) internal {
       allPlayers[_playerAddress].winnings+=winnings;
     }
@@ -145,7 +146,7 @@ contract Syndicate is Ownable{
         return result;
     }
 
-    // distribute profit amonge syndicate members on a percentage share basis
+    // distribute profit among shareholders and players in top 10
     function distributeProfit() internal {
 
       uint256 totalOwnedShares = totalSyndicateShares-(playersShareAllocation+availableBuyInShares);
@@ -180,10 +181,9 @@ contract Syndicate is Ownable{
           arr[j] = arr[j-1];
         }
         arr[j] = key;
-      }
+      }  // end sorting cycle players
 
       //arr now contains the sorted set of addresses for distribution
-      // end sorting cycle players
 
       // for each of the top 10 players distribute their profit.
       for(i = 0; i< numberOfRecipients; i++)
@@ -194,20 +194,18 @@ contract Syndicate is Ownable{
         }
       }
 
-      numberOfCyclePlayers=0;
-
       // emit a profit share event
       ProfitShare(currentSyndicateValue, numberSyndicateMembers, totalOwnedShares , profitPerShare);
-
-      currentSyndicateValue=0; // all the profit has been divided up
-      shareCycleIndex = 1; // restart the share cycle count.
+      
+      // reset the cycle variables
+      numberOfCyclePlayers=0;
+      currentSyndicateValue=0; 
+      shareCycleIndex = 1; 
       shareCycle++;
     }
 
-
     // updates the count for this player
     function updatePlayCount() internal{
-
       // first time playing this share cycle?
       if(allPlayers[msg.sender].shareCycle!=shareCycle){
           allPlayers[msg.sender].playCount=0;
@@ -216,9 +214,7 @@ contract Syndicate is Ownable{
       }
         allPlayers[msg.sender].playCount++;
         // note we don't touch profitShare or winnings because they need to roll over cycles if unclaimed
-
     }
-
 
     // convenience to manage a growing array
     function insertCyclePlayer() internal {
@@ -227,7 +223,6 @@ contract Syndicate is Ownable{
         }
         cyclePlayers[numberOfCyclePlayers++] = msg.sender;
     }
-
 
     // add new member of syndicate
     function addMember(address _memberAddress) internal {
@@ -240,7 +235,7 @@ contract Syndicate is Ownable{
     // buy into syndicate
     function buyIntoSyndicate() public payable  {
         if(msg.value==0 || availableBuyInShares==0) revert();
-          if(msg.value < minimumBuyIn*buyInSharePrice) revert();
+        if(msg.value < minimumBuyIn*buyInSharePrice) revert();
 
         uint256 value = (msg.value/precision)*precision; // ensure precision
         uint256 allocation = value/buyInSharePrice;
@@ -251,7 +246,6 @@ contract Syndicate is Ownable{
         availableBuyInShares-=allocation;
         addMember(msg.sender); // possibly add this member to the syndicate
         members[msg.sender].numShares+=allocation;
-
     }
 
     // how many shares?
@@ -309,7 +303,6 @@ contract Hedgely is Ownable, Syndicate {
    mapping(address => uint256 [10] ) private playerPortfolio;
 
    uint256[10] private marketOptions;
-   uint256[10] private seedInvestments;
 
    // The total amount of Ether bet for this current market
    uint256 public totalInvested;
@@ -367,15 +360,6 @@ contract Hedgely is Ownable, Syndicate {
            uint256 _blockNumber
      );
 
-
-
-    bool locked;
-    modifier noReentrancy() {
-        require(!locked);
-        locked = true;
-        _;
-        locked = false;
-    }
 
    function Hedgely() public {
      owner = msg.sender;
@@ -464,6 +448,7 @@ contract Hedgely is Ownable, Syndicate {
      marketOptions = startingOptions;
      playerPortfolio[this] = marketOptions;
      totalInvested =  sumInvested;
+     seedInvestment = sumInvested;
      insertPlayer(this);
      numPlayers=1;
      numberOfInvestments = 10;
@@ -475,7 +460,7 @@ contract Hedgely is Ownable, Syndicate {
 
 
     // main entry point for investors/players
-    function invest(uint256 optionNumber) public payable noReentrancy {
+    function invest(uint256 optionNumber) public payable {
 
       // Check that the number is within the range (uints are always>=0 anyway)
       assert(optionNumber <= 9);
@@ -576,9 +561,7 @@ contract Hedgely is Ownable, Syndicate {
       if (playerInvestments>sessionWinnings){
         currentSyndicateValue+=playerInvestments-sessionWinnings; // this is a gain
       }
-
       resetMarket();
-
     } // end session
 
 
@@ -591,13 +574,10 @@ contract Hedgely is Ownable, Syndicate {
     }
 
 
+    // ----- admin functions in event of an issue --
     function setSessionBlockSize (uint256 blockCount) public onlyOwner {
         sessionBlockSize = blockCount;
     }
-
-
-
-    // ----- admin functions in event of an issue --
 
     function withdraw(uint256 amount) public onlyOwner {
         require(amount<=this.balance);
@@ -607,7 +587,6 @@ contract Hedgely is Ownable, Syndicate {
         owner.transfer(amount);
     }
 
-
    // In the event of catastrophe
     function kill()  public onlyOwner {
          if(msg.sender == owner)
@@ -616,7 +595,6 @@ contract Hedgely is Ownable, Syndicate {
 
     // donations, funding, replenish
      function() public payable {}
-
 
 }
 
