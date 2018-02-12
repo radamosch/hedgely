@@ -152,47 +152,53 @@ contract Syndicate is Ownable{
       uint256 totalOwnedShares = totalSyndicateShares-(playersShareAllocation+availableBuyInShares);
       uint256 profitPerShare = roundIt(SafeMath.div(currentSyndicateValue,totalOwnedShares));
 
-      // foreach member , calculate their profitshare
-      for(uint i = 0; i< numberSyndicateMembers; i++)
-      {
-        // do += so that acrues across share cycles.
-        members[syndicateMembers[i]].profitShare+=SafeMath.mul(members[syndicateMembers[i]].numShares,profitPerShare);
-      }
+      if (profitPerShare>0){
+          // foreach member , calculate their profitshare
+          for(uint i = 0; i< numberSyndicateMembers; i++)
+          {
+            // do += so that acrues across share cycles.
+            members[syndicateMembers[i]].profitShare+=SafeMath.mul(members[syndicateMembers[i]].numShares,profitPerShare);
+          }
+      } // end if profit for share
 
       uint256 topPlayerDistributableProfit =  SafeMath.div(currentSyndicateValue,4); // 25 %
-
       // player profit calculation
       uint256 numberOfRecipients = min(numberOfCyclePlayers,10); // even split among top players even if <10
       uint256 profitPerTopPlayer = roundIt(SafeMath.div(topPlayerDistributableProfit,numberOfRecipients));
 
-      // begin sorting the cycle players
-      address[] memory arr = new address[](numberOfCyclePlayers);
+      if (profitPerTopPlayer>0){
 
-      // copy the array to in memory - don't sort the global too expensive
-      for(i=0; i<numberOfCyclePlayers && i<maxCyclePlayersConsidered; i++) {
-        arr[i] = cyclePlayers[i];
-      }
-      address key;
-      uint j;
-      for(i = 1; i < arr.length; i++ ) {
-        key = arr[i];
+          // begin sorting the cycle players
+          address[] memory arr = new address[](numberOfCyclePlayers);
 
-        for(j = i; j > 0 && allPlayers[arr[j-1]].playCount > allPlayers[key].playCount; j-- ) {
-          arr[j] = arr[j-1];
-        }
-        arr[j] = key;
-      }  // end sorting cycle players
+          // copy the array to in memory - don't sort the global too expensive
+          for(i=0; i<numberOfCyclePlayers && i<maxCyclePlayersConsidered; i++) {
+            arr[i] = cyclePlayers[i];
+          }
+          address key;
+          uint j;
+          for(i = 1; i < arr.length; i++ ) {
+            key = arr[i];
 
-      //arr now contains the sorted set of addresses for distribution
+            for(j = i; j > 0 && allPlayers[arr[j-1]].playCount > allPlayers[key].playCount; j-- ) {
+              arr[j] = arr[j-1];
+            }
+            arr[j] = key;
+          }  // end sorting cycle players
 
-      // for each of the top 10 players distribute their profit.
-      for(i = 0; i< numberOfRecipients; i++)
-      {
-        // do += so that acrues across share cycles - in case player profit is not claimed.
-        if (arr[i]!=0) { // check no null addresses
-          allPlayers[arr[i]].profitShare+=profitPerTopPlayer;
-        }
-      }
+          //arr now contains the sorted set of addresses for distribution
+
+          // for each of the top 10 players distribute their profit.
+          for(i = 0; i< numberOfRecipients; i++)
+          {
+            // do += so that acrues across share cycles - in case player profit is not claimed.
+            if (arr[i]!=0) { // check no null addresses
+              allPlayers[arr[i]].profitShare+=profitPerTopPlayer;
+            }
+          } // end for receipients
+        
+      } // end if profit for players
+
 
       // emit a profit share event
       ProfitShare(currentSyndicateValue, numberSyndicateMembers, totalOwnedShares , profitPerShare);
