@@ -363,7 +363,7 @@ contract Hedgely is Ownable, Syndicate {
 
    function Hedgely() public {
      owner = msg.sender;
-     sessionBlockSize = 20;
+     sessionBlockSize = 100;
      sessionNumber = 0;
      numPlayers = 0;
      resetMarket();
