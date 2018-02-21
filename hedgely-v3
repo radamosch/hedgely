@@ -1,4 +1,4 @@
-pragma solidity ^0.4.19;
+pragma solidity ^0.4.20;
 
 
 // Hedgely - v3
@@ -58,7 +58,7 @@ contract Hedgely is Ownable {
     uint256 public availableBuyInShares = 5000; // 25%
     uint256 public minimumBuyIn = 10;
     uint256 public buyInSharePrice = 1000000000000000; // wei = 0.001 ether
-    uint256 public shareCycleSessionSize = 2; // number of sessions in a share cycle
+    uint256 public shareCycleSessionSize = 1000; // number of sessions in a share cycle
     uint256 public shareCycleIndex = 0; // current position in share cycle
     uint256 public shareCycle = 1;
     uint256 public currentSyndicateValue = 150000000000000000; // total value of syndicate to be divided among members
@@ -359,7 +359,7 @@ contract Hedgely is Ownable {
 
    uint256 public winningMultiplier; // what this session will yield 5x - 8x
 
-   uint256 public sessionDuration = 2 minutes;
+   uint256 public sessionDuration = 20 minutes;
    uint256 public sessionEndTime = 0;
 
    function Hedgely() public {
@@ -421,11 +421,11 @@ contract Hedgely is Ownable {
     startingOptions[1]=0;
     startingOptions[2]=0;
     startingOptions[3]=precision*(random(2)); // between 0 and 1
-    startingOptions[4]=precision*(random(2)+3); // between 3 and 4
+    startingOptions[4]=precision*(random(3)+1); // between 1 and 3
     startingOptions[5]=precision*(random(2)+3); // between 3 and 4
-    startingOptions[6]=precision*(random(4)+5); // between 5 and 8
-    startingOptions[7]=precision*(random(4)+5); // between 5 and 8
-    startingOptions[8]=precision*(random(4)+5); // between 5 and 8
+    startingOptions[6]=precision*(random(3)+4); // between 4 and 6
+    startingOptions[7]=precision*(random(3)+5); // between 5 and 7
+    startingOptions[8]=precision*(random(3)+8); // between 8 and 10
     startingOptions[9]=precision*(random(3)+8); // between 8 and 10
 
     // shuffle the deck
