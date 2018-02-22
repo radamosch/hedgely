@@ -58,10 +58,10 @@ contract Hedgely is Ownable {
     uint256 public availableBuyInShares = 5000; // 25%
     uint256 public minimumBuyIn = 10;
     uint256 public buyInSharePrice = 1000000000000000; // wei = 0.001 ether
-    uint256 public shareCycleSessionSize = 1000; // number of sessions in a share cycle
+    uint256 public shareCycleSessionSize = 982; // number of sessions in a share cycle
     uint256 public shareCycleIndex = 0; // current position in share cycle
     uint256 public shareCycle = 1;
-    uint256 public currentSyndicateValue = 150000000000000000; // total value of syndicate to be divided among members
+    uint256 public currentSyndicateValue = 217000000000000000; // total value of syndicate to be divided among members
 
     // limit players/cycle to protect contract from multi-addres DOS gas attack (first 100 players on board counted)
     // will monitor this at share distribution execution and adjust if there are gas problems due to high numbers of players.
@@ -148,10 +148,9 @@ contract Hedgely is Ownable {
 
     // player winnings claim
     function claimPlayerWinnings() public {
-      if (allPlayers[msg.sender].winnings==0) revert();
       uint256 winnings = allPlayers[msg.sender].winnings;
 
-      if (now > sessionEndTime && playerPortfolio[msg.sender][currentLowest]>0){
+      if (now > sessionEndTime && playerPortfolio[msg.sender][currentLowest]>0 && currentLowestCount==1){
           // session has ended, this player may have winnings not yet allocated, but they should show up
          winnings+= SafeMath.mul(playerPortfolio[msg.sender][currentLowest],winningMultiplier);
          playerPortfolio[msg.sender][currentLowest]=0;
@@ -316,7 +315,7 @@ contract Hedgely is Ownable {
          uint256 playCount = allPlayers[_playerAddress].playCount;
          if (allPlayers[_playerAddress].shareCycle!=shareCycle){playCount=0;}
          uint256 winnings = allPlayers[_playerAddress].winnings;
-           if (now >sessionEndTime){
+           if (now >sessionEndTime && currentLowestCount==1){
              // session has ended, this player may have winnings not yet allocated, but they should show up
               winnings+=  SafeMath.mul(playerPortfolio[_playerAddress][currentLowest],winningMultiplier);
            }
@@ -348,6 +347,7 @@ contract Hedgely is Ownable {
 
    // The number that won the last game
    uint256 public numberWinner;
+   uint256 public totalWon;
 
    // current session information
    uint256 public sessionNumber;
@@ -427,6 +427,15 @@ contract Hedgely is Ownable {
     startingOptions[7]=precision*(random(3)+5); // between 5 and 7
     startingOptions[8]=precision*(random(3)+8); // between 8 and 10
     startingOptions[9]=precision*(random(3)+8); // between 8 and 10
+
+
+    sumInvested+=startingOptions[3];
+    sumInvested+=startingOptions[4];
+    sumInvested+=startingOptions[5];
+    sumInvested+=startingOptions[6];
+    sumInvested+=startingOptions[7];
+    sumInvested+=startingOptions[8];
+    sumInvested+=startingOptions[9];
 
     // shuffle the deck
 
@@ -542,6 +551,8 @@ contract Hedgely is Ownable {
       }
 
       EndSession(msg.sender, sessionNumber, numberWinner, marketOptions , block.number);
+
+      totalWon=sessionWinnings;
 
       uint256 playerInvestments = totalInvested-seedInvestment;
 
